@@ -5,8 +5,16 @@ import (
 	"os"
 )
 
-// ---- Page -------------------------------------------------------------------
-// A wiki page.
+/*
+ 	Page represents a wiki page, as loaded in program memory.
+
+ As such, it contains:
+
+  * the page title, used for the URL
+  * the page body, as an array of bytes instead of a string, to ease filesystem
+    input/output
+
+  */
 type Page struct {
 	Title string
 	Body  []byte

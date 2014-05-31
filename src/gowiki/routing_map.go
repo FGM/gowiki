@@ -6,7 +6,6 @@ import (
 	"reflect"
 )
 
-// ---- Routing map ------------------------------------------------------------
 type RoutingMap map[string]RequestHandler
 
 // List paths in the routing map and their handlers.

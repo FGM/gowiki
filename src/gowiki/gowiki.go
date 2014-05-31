@@ -29,10 +29,9 @@ var settings = Settings{
 	},
 }
 
-// ---- Request handler --------------------------------------------------------
 type RequestHandler func(http.ResponseWriter, *http.Request, string)
 
-// ---- Functions --------------------------------------------------------------
+
 // Handler for edit/* pages.
 func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 	var page Page
@@ -107,8 +106,6 @@ func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 
 	renderTemplate(w, "view", &page)
 }
-
-// ---- Main code --------------------------------------------------------------
 
 // A single wrapper for all application-defined globals, derived from settings.
 var conf Configuration
