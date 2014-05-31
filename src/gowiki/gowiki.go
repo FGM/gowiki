@@ -13,12 +13,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"html/template"
-	"io/ioutil"
 	"net/http"
-	"os"
-	"reflect"
-	"regexp"
 )
 
 // Environment related initial configuration.
@@ -34,71 +29,8 @@ var settings = Settings{
 	},
 }
 
-// ---- Configuration ----------------------------------------------------------
-// Derived configuration globals.
-// @see var conf
-type Configuration struct {
-	Templates        *template.Template
-	ValidPath        *regexp.Regexp
-}
-
-func (c *Configuration) init(s Settings) {
-	c.Templates = template.Must(template.ParseGlob(s.TemplatesPath + "/*"))
-	c.ValidPath = regexp.MustCompile("^/((edit|save|view)/([_a-zA-Z0-9]+))?$")
-}
-
-// ---- Page -------------------------------------------------------------------
-// A wiki page.
-type Page struct {
-	Title string
-	Body  []byte
-}
-
-// Load page with given title.
-// If page file does not exist, set Title and leave Body empty.
-func (p *Page) load(title string) {
-	filename := settings.PagesPath + "/" + title + ".txt"
-	p.Title = title
-	// A failed read is normal at this point, just leave Body blank.
-	p.Body, _ = ioutil.ReadFile(filename)
-}
-
-// Save page to file named "(p.Title).txt".
-func (p *Page) save() error {
-	filename := settings.PagesPath + "/" + p.Title + ".txt"
-	ret := ioutil.WriteFile(filename, p.Body, os.FileMode(0600))
-	return ret
-}
-
 // ---- Request handler --------------------------------------------------------
 type RequestHandler func(http.ResponseWriter, *http.Request, string)
-
-// ---- Routing map ------------------------------------------------------------
-type RoutingMap map[string]RequestHandler
-
-// List paths in the routing map and their handlers.
-func (m RoutingMap) dump() int {
-	for path, handler := range m {
-		fmt.Println(path, reflect.TypeOf(handler), handler)
-	}
-	return len(m)
-}
-
-// Register the routes in the http dispatcher.
-func (m RoutingMap) register() {
-	for path, handler := range m {
-		http.HandleFunc(path, makeHandler(handler))
-	}
-}
-
-// ---- Settings ---------------------------------------------------------------
-// Initial configuration values.
-type Settings struct {
-	Port             uint16
-	PagesPath        string
-	TemplatesPath    string
-	Routes			 *RoutingMap
-}
 
 // ---- Functions --------------------------------------------------------------
 // Handler for edit/* pages.
