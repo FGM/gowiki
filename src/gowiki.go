@@ -27,6 +27,7 @@ var settings = Settings{
 	TemplatesPath: "templates",
 	PagesPath:     "data",
 	Routes: &RoutingMap{
+		"/"	     : frontHandler,
 		"/view/" : viewHandler,
 		"/edit/" : editHandler,
 		"/save/" : saveHandler,
@@ -43,7 +44,7 @@ type Configuration struct {
 
 func (c *Configuration) init(s Settings) {
 	c.Templates = template.Must(template.ParseGlob(s.TemplatesPath + "/*"))
-	c.ValidPath = regexp.MustCompile("^/(edit|save|view)/([_a-zA-Z0-9]+)$")
+	c.ValidPath = regexp.MustCompile("^/((edit|save|view)/([_a-zA-Z0-9]+))?$")
 }
 
 // ---- Page -------------------------------------------------------------------
@@ -105,7 +106,14 @@ func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 	var page Page
 
 	page.load(title)
+	fmt.Println("Editing", title)
 	renderTemplate(w, "edit", &page)
+}
+
+// Handler for front page.
+func frontHandler(w http.ResponseWriter, r *http.Request, title string) {
+	fmt.Println("Home redirecting to FrontPage")
+    http.Redirect(w, r, "/view/FrontPage", http.StatusFound)
 }
 
 func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
@@ -122,12 +130,14 @@ func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
 func makeHandler(fn RequestHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := conf.ValidPath.FindStringSubmatch(r.URL.Path)
+		// fmt.Printf("URL: %s, Matches %#v, len %d\n", r.URL.Path, m, len(m))
 		if m == nil {
 			http.NotFound(w, r)
 			return
 		}
-		// 0: all, 1: op, 2: title.
-		fn(w, r, m[2])
+		// On normal paths: 0: all, 1: op, 2: title.
+		// len(m) is always 4, so we do not need a special case for "/".
+        fn(w, r, m[3])
 	}
 }
 
@@ -140,6 +150,7 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 }
 
 func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
+	fmt.Println("Saving", title)
 	body := r.FormValue("body")
 	p := &Page{Title: title, Body: []byte(body)}
 
@@ -153,6 +164,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
+	fmt.Println("Viewing", title)
 	var page Page
 
 	page.load(title)
