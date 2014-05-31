@@ -17,28 +17,99 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"reflect"
 	"regexp"
 )
 
-const PORT = 8080
+// Environment related initial configuration.
+var settings = Settings{
+	Port:          8080,
+	TemplatesPath: "templates",
+	PagesPath:     "data",
+	Routes: &RoutingMap{
+		"/view/" : viewHandler,
+		"/edit/" : editHandler,
+		"/save/" : saveHandler,
+	},
+}
 
+// ---- Configuration ----------------------------------------------------------
+// Derived configuration globals.
+// @see var conf
+type Configuration struct {
+	Templates        *template.Template
+	ValidPath        *regexp.Regexp
+}
+
+func (c *Configuration) init(s Settings) {
+	c.Templates = template.Must(template.ParseGlob(s.TemplatesPath + "/*"))
+	c.ValidPath = regexp.MustCompile("^/(edit|save|view)/([_a-zA-Z0-9]+)$")
+}
+
+// ---- Page -------------------------------------------------------------------
+// A wiki page.
 type Page struct {
 	Title string
 	Body  []byte
 }
 
-func editHandler(w http.ResponseWriter, r *http.Request, title string) {
-	page, err := loadPage(title)
-	// S'il n'y a pas de page, en créer une vierge avec le titre.
-	if err != nil {
-		page = &Page{Title: title}
-	}
+// Load page with given title.
+// If page file does not exist, set Title and leave Body empty.
+func (p *Page) load(title string) {
+	filename := settings.PagesPath + "/" + title + ".txt"
+	p.Title = title
+	// A failed read is normal at this point, just leave Body blank.
+	p.Body, _ = ioutil.ReadFile(filename)
+}
 
-	renderTemplate(w, "edit", page)
+// Save page to file named "(p.Title).txt".
+func (p *Page) save() error {
+	filename := settings.PagesPath + "/" + p.Title + ".txt"
+	ret := ioutil.WriteFile(filename, p.Body, os.FileMode(0600))
+	return ret
+}
+
+// ---- Request handler --------------------------------------------------------
+type RequestHandler func(http.ResponseWriter, *http.Request, string)
+
+// ---- Routing map ------------------------------------------------------------
+type RoutingMap map[string]RequestHandler
+
+// List paths in the routing map and their handlers.
+func (m RoutingMap) dump() int {
+	for path, handler := range m {
+		fmt.Println(path, reflect.TypeOf(handler), handler)
+	}
+	return len(m)
+}
+
+// Register the routes in the http dispatcher.
+func (m RoutingMap) register() {
+	for path, handler := range m {
+		http.HandleFunc(path, makeHandler(handler))
+	}
+}
+
+// ---- Settings ---------------------------------------------------------------
+// Initial configuration values.
+type Settings struct {
+	Port             uint16
+	PagesPath        string
+	TemplatesPath    string
+	Routes			 *RoutingMap
+}
+
+// ---- Functions --------------------------------------------------------------
+// Handler for edit/* pages.
+func editHandler(w http.ResponseWriter, r *http.Request, title string) {
+	var page Page
+
+	page.load(title)
+	renderTemplate(w, "edit", &page)
 }
 
 func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
-	m := validPath.FindStringSubmatch(r.URL.Path)
+	m := conf.ValidPath.FindStringSubmatch(r.URL.Path)
 	if m == nil {
 		http.NotFound(w, r)
 		return "", errors.New("Invalid page title")
@@ -47,29 +118,21 @@ func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
 	return m[2], nil
 }
 
-func loadPage(title string) (*Page, error) {
-	filename := title + ".txt"
-	body, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-	ret := &Page{Title: title, Body: body}
-	return ret, nil
-}
-
-func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+// Build a handler acceptable by the http dispatcher from a RequestHandler.
+func makeHandler(fn RequestHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		m := validPath.FindStringSubmatch(r.URL.Path)
+		m := conf.ValidPath.FindStringSubmatch(r.URL.Path)
 		if m == nil {
 			http.NotFound(w, r)
 			return
 		}
+		// 0: all, 1: op, 2: title.
 		fn(w, r, m[2])
 	}
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-	err := templates.ExecuteTemplate(w, tmpl+".html", p)
+	err := conf.Templates.ExecuteTemplate(w, tmpl+".html", p)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -90,29 +153,33 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
-	page, err := loadPage(title)
-	if err != nil {
+	var page Page
+
+	page.load(title)
+	if len(page.Body) == 0 {
 		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
 		return
 	}
 
-	renderTemplate(w, "view", page)
+	renderTemplate(w, "view", &page)
 }
 
-func (p *Page) save() error {
-	filename := p.Title + ".txt"
-	ret := ioutil.WriteFile(filename, p.Body, os.FileMode(0600))
-	return ret
+// ---- Main code --------------------------------------------------------------
+
+// A single wrapper for all application-defined globals, derived from settings.
+var conf Configuration
+
+// Initialize computed globals from data at the top of the file, and register
+// route handlers.
+func init() {
+	conf.init(settings)
+	settings.Routes.register()
+	// settings.Routes.dump()
 }
 
-var templates = template.Must(template.ParseFiles("edit.html", "view.html"))
-var validPath = regexp.MustCompile("^/(edit|save|view)/([_a-zA-Z0-9]+)$")
-
+// Main function: HTTP server.
 func main() {
-	http.HandleFunc("/view/", makeHandler(viewHandler))
-	http.HandleFunc("/edit/", makeHandler(editHandler))
-	http.HandleFunc("/save/", makeHandler(saveHandler))
-	listenAddress := fmt.Sprintf(":%d", PORT)
+	listenAddress := fmt.Sprintf(":%d", settings.Port)
 	fmt.Printf("Listening on %s\n", listenAddress)
 	http.ListenAndServe(listenAddress, nil)
 }
