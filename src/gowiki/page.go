@@ -23,7 +23,7 @@ type Page struct {
 // Load page with given title.
 // If page file does not exist, set Title and leave Body empty.
 func (p *Page) load(title string) {
-	filename := settings.PagesPath + "/" + title + ".txt"
+	filename := Conf.Settings.PagesPath + "/" + title + ".txt"
 	p.Title = title
 	// A failed read is normal at this point, just leave Body blank.
 	p.Body, _ = ioutil.ReadFile(filename)
@@ -31,8 +31,7 @@ func (p *Page) load(title string) {
 
 // Save page to file named "(p.Title).txt".
 func (p *Page) save() error {
-	filename := settings.PagesPath + "/" + p.Title + ".txt"
+	filename := Conf.Settings.PagesPath + "/" + p.Title + ".txt"
 	ret := ioutil.WriteFile(filename, p.Body, os.FileMode(0600))
 	return ret
 }
-

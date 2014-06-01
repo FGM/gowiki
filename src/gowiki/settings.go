@@ -11,6 +11,7 @@ Settings represent initial configuration values
 type Settings struct {
 	Port             uint16
 	PagesPath        string
+	StylesPath		 string
 	TemplatesPath    string
 	Routes			 *RoutingMap
 }

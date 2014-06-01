@@ -1,10 +1,19 @@
-<h1>Editing {{.Title}}</h1>
+<html>
+  <head>
+    <title>{{.page.Title}}</title>
+    <link rel="stylesheet" href="/{{.settings.StylesPath}}" />
+    </head>
 
-<form action="/save/{{.Title}}" method="POST">
-  <div>
-    <textarea name="body" rows="20" cols="60">{{ printf "%s" .Body}}</textarea>
-    </div>
-  <div>
-    <input type="submit" value="Save" />
-    </div>
-  </form>
+  <body>
+    <h1>Editing {{.page.Title}}</h1>
+
+    <form action="/save/{{.page.Title}}" method="POST">
+      <div>
+        <textarea name="body" rows="20" cols="60">{{ printf "%s" .page.Body}}</textarea>
+        </div>
+      <div>
+        <input type="submit" value="Save" />
+        </div>
+      </form>
+    </body>
+  </html>

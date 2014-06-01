@@ -1,7 +1,16 @@
-<h1>{{.Title}}</h1>
+<html>
+  <head>
+    <title>{{.page.Title}}</title>
+    <link rel="stylesheet" href="/{{.settings.StylesPath}}" />
+    </head>
 
-<p>[<a href="/edit/{{.Title}}">edit</a>]</p>
+  <body>
+    <h1>{{.page.Title}}</h1>
 
-<div class="edit">
-  {{printf "%s" .Body}}
-  </div>
+    <p>[<a href="/edit/{{.page.Title}}">edit</a>]</p>
+
+    <div class="edit">
+      {{printf "%s" .page.Body}}
+      </div>
+    </body>
+  </html>

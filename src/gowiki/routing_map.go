@@ -19,7 +19,7 @@ func (m RoutingMap) dump() int {
 // Register the routes in the http dispatcher.
 func (m RoutingMap) register() {
 	for path, handler := range m {
-		http.HandleFunc(path, makeHandler(handler))
+		http.HandleFunc(path, MakeHandler(handler))
 	}
 }
 
