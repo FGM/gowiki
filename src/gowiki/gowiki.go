@@ -15,10 +15,12 @@ Web programming in Go: tutorial example.
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 )
 
 type RequestHandler func(http.ResponseWriter, *http.Request, string)
@@ -31,7 +33,20 @@ func EditHandler(w http.ResponseWriter, r *http.Request, title string) {
 
 	page.load(title)
 	fmt.Println("Editing", title)
-	RenderTemplate(w, "edit", &page)
+	result, err := RenderTemplate("edit", &page)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(result)
+}
+
+// Filter transforms [foo] into a link to /view/foo.
+func Filter(input []byte) []byte {
+	var pattern *regexp.Regexp
+	pattern = regexp.MustCompile("\\[(\\w+)\\]")
+	output := pattern.ReplaceAll(input, []byte("<a href=\"/view/$1\">$1</a>"))
+	return output
 }
 
 // FrontHandler handles front page.
@@ -77,17 +92,15 @@ Arguments
 	tmpl	The base name of the template, without ".html"
 	p	The page to render
 */
-func RenderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+func RenderTemplate(tmpl string, p *Page) ([]byte, error){
 	vars := make(map[string]interface {})
 
 	vars["page"] = p
 	vars["settings"] = Conf.Settings
 
-	err := Conf.Templates.ExecuteTemplate(w, tmpl+".html", vars)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	buffer := new(bytes.Buffer)
+	err := Conf.Templates.ExecuteTemplate(buffer, tmpl+".html", vars)
+	return buffer.Bytes(), err
 }
 
 /*
@@ -159,7 +172,13 @@ func ViewHandler(w http.ResponseWriter, r *http.Request, title string) {
 		return
 	}
 
-	RenderTemplate(w, "view", &page)
+	result, err := RenderTemplate("view", &page)
+	if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(Filter(result))
 }
 
 // A single wrapper for all application-defined globals, derived from settings.

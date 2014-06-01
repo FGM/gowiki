@@ -1,2 +1,3 @@
 bin/*
-
+src/gowiki/data/*
+src/gowiki/gowiki

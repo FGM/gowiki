@@ -3,6 +3,7 @@ package main
 import (
 	"io/ioutil"
 	"os"
+	"fmt"
 )
 
 /*
@@ -20,9 +21,16 @@ type Page struct {
 	Body  []byte
 }
 
+func filterCallback(buf []byte) []byte {
+	fmt.Println("Filtering %s\n", string(buf))
+	link := fmt.Sprintf("<a href=\"/view\"%s\">%s</a>\n", buf, buf)
+	return []byte(link)
+}
+
 // Load page with given title.
 // If page file does not exist, set Title and leave Body empty.
 func (p *Page) load(title string) {
+
 	filename := Conf.Settings.PagesPath + "/" + title + ".txt"
 	p.Title = title
 	// A failed read is normal at this point, just leave Body blank.
